@@ -7,7 +7,5 @@
   },
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "k6": "^0.46.0"
-  }
+  "devDependencies": {}
 }

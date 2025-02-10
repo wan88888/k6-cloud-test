@@ -44,7 +44,7 @@ jobs:
         echo "test_id=${TEST_ID}" >> $GITHUB_OUTPUT
 
     - name: Send test report to Feishu
-      if: always()
+      if: success()
       run: |
         TEST_ID=${{ steps.k6-test.outputs.test_id }}
         TEST_URL="https://app.k6.io/runs/${TEST_ID}"
