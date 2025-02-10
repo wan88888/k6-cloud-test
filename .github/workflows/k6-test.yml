@@ -44,20 +44,22 @@ jobs:
         echo "test_id=${TEST_ID}" >> $GITHUB_OUTPUT
 
     - name: Send test report to Feishu
-      if: success()
+      if: always()
       run: |
         TEST_ID=${{ steps.k6-test.outputs.test_id }}
         TEST_URL="https://app.k6.io/runs/${TEST_ID}"
         STATUS="${{ job.status }}"
         
         if [ "$STATUS" = "success" ]; then
-          STATUS_TEXT="✅ 测试通过"
+          STATUS_TEXT="✅ 性能测试通过"
           COLOR="green"
+          DETAIL="所有性能指标均达到预期要求"
         else
-          STATUS_TEXT="❌ 测试失败"
+          STATUS_TEXT="❌ 性能测试未通过"
           COLOR="red"
+          DETAIL="部分性能指标未达到阈值要求，请查看详细报告进行分析"
         fi
         
         curl -X POST -H "Content-Type: application/json" \
-          -d "{\"msg_type\":\"post\",\"content\":{\"post\":{\"zh_cn\":{\"title\":\"K6性能测试报告\",\"content\":[[{\"tag\":\"text\",\"text\":\"${STATUS_TEXT}\n测试ID: ${TEST_ID}\n查看详细报告: ${TEST_URL}\"}]]}}}}" \
+          -d "{\"msg_type\":\"post\",\"content\":{\"post\":{\"zh_cn\":{\"title\":\"K6性能测试报告\",\"content\":[[{\"tag\":\"text\",\"text\":\"${STATUS_TEXT}\n\n${DETAIL}\n\n测试ID: ${TEST_ID}\n\n查看详细报告: ${TEST_URL}\n\n注意：即使测试未通过阈值要求，您仍可以通过报告链接查看具体的性能指标数据。\"}]]}}}" \
           "${FEISHU_WEBHOOK}"

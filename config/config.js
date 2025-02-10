@@ -18,7 +18,7 @@ export const options = {
     loadimpact: {
       projectID: 3638280,               // 替换为你的项目ID
       name: 'test1',
-      token: process.env.K6_CLOUD_TOKEN  // 从环境变量获取K6 Cloud Token
+      token: __ENV.K6_CLOUD_TOKEN  // 从环境变量获取K6 Cloud Token
     }
   },
   // 云端执行配置
