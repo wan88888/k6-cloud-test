@@ -1,0 +1,64 @@
+name: K6 Performance Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+      FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install k6
+      run: |
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update
+        sudo apt-get install k6
+
+    - name: Run k6 cloud tests
+      id: k6-test
+      run: |
+        OUTPUT=$(k6 cloud tests/test.js)
+        TEST_ID=$(echo "$OUTPUT" | grep -oP 'Run \K[0-9]+' || true)
+        if [ -z "$TEST_ID" ]; then
+          echo "Failed to extract test ID from output"
+          exit 1
+        fi
+        echo "test_id=${TEST_ID}" >> $GITHUB_OUTPUT
+
+    - name: Send test report to Feishu
+      if: always()
+      run: |
+        TEST_ID=${{ steps.k6-test.outputs.test_id }}
+        TEST_URL="https://app.k6.io/runs/${TEST_ID}"
+        STATUS="${{ job.status }}"
+        
+        if [ "$STATUS" = "success" ]; then
+          STATUS_TEXT="✅ 测试通过"
+          COLOR="green"
+        else
+          STATUS_TEXT="❌ 测试失败"
+          COLOR="red"
+        fi
+        
+        curl -X POST -H "Content-Type: application/json" \
+          -d "{\"msg_type\":\"post\",\"content\":{\"post\":{\"zh_cn\":{\"title\":\"K6性能测试报告\",\"content\":[[{\"tag\":\"text\",\"text\":\"${STATUS_TEXT}\n测试ID: ${TEST_ID}\n查看详细报告: ${TEST_URL}\"}]]}}}}" \
+          ${{ env.FEISHU_WEBHOOK }}
