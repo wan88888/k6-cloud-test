@@ -35,19 +35,30 @@ jobs:
     - name: Run k6 cloud tests
       id: k6-test
       run: |
+        echo "开始执行K6 Cloud测试..."
+        
         # 运行k6测试并保存输出
         OUTPUT=$(k6 cloud tests/test.js 2>&1)
-        echo "K6 Output: $OUTPUT"
+        EXIT_CODE=$?
+        
+        echo "K6测试执行完成，退出代码: $EXIT_CODE"
+        echo "完整输出："
+        echo "$OUTPUT"
         
         # 尝试多种模式匹配测试ID
-        TEST_ID=$(echo "$OUTPUT" | grep -oP '(?:Run|Test run) \K[0-9]+' || \
-                 echo "$OUTPUT" | grep -oP 'test run ID: \K[0-9]+' || \
-                 echo "$OUTPUT" | grep -oP 'run/\K[0-9]+' || true)
+        TEST_ID=$(echo "$OUTPUT" | grep -oP '(?:cloud execution: |run/|test run ID: |Run |Test run )\K[0-9]+' || \
+                 echo "$OUTPUT" | grep -oP 'https://app\.k6\.io/runs/\K[0-9]+' || \
+                 echo "$OUTPUT" | grep -oP '/runs/\K[0-9]+' || true)
+        
+        echo "提取的测试ID: ${TEST_ID:-未找到}"
         
         if [ -z "$TEST_ID" ]; then
           echo "错误：无法从K6输出中提取测试ID"
-          echo "完整输出："
-          echo "$OUTPUT"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "K6测试执行失败，请检查上述输出中的错误信息"
+          else
+            echo "K6测试执行成功，但无法提取测试ID，请检查输出格式是否变更"
+          fi
           exit 1
         fi
         
@@ -72,5 +83,5 @@ jobs:
         fi
         
         curl -X POST -H "Content-Type: application/json" \
-          -d "{\"msg_type\":\"interactive\",\"card\":{\"header\":{\"title\":{\"tag\":\"plain_text\",\"content\":\"K6性能测试报告\"},\"template\":\"${COLOR}\"},\"elements\":[{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试状态：** ${STATUS_EMOJI} ${STATUS_TEXT}\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试ID：** ${TEST_ID}\"}},{\"tag\":\"action\",\"actions\":[{\"tag\":\"button\",\"text\":{\"tag\":\"plain_text\",\"content\":\"查看详细报告\"},\"url\":\"${TEST_URL}\",\"type\":\"default\"}]},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"---\"}}]}}}" \
+          -d "{\"msg_type\":\"interactive\",\"card\":{\"header\":{\"title\":{\"tag\":\"plain_text\",\"content\":\"K6性能测试报告\"},\"template\":\"${COLOR}\"},\"elements\":[{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试状态：** ${STATUS_EMOJI} ${STATUS_TEXT}\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试ID：** ${TEST_ID}\"}},{\"tag\":\"action\",\"actions\":[{\"tag\":\"button\",\"text\":{\"tag\":\"plain_text\",\"content\":\"查看详细报告\"},\"url\":\"${TEST_URL}\",\"type\":\"default\"}]},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"---\"}}]}}" \
           "${FEISHU_WEBHOOK}"
