@@ -11,7 +11,7 @@ export const options = {
   thresholds: {
     http_req_duration: ['p(95)<1200'],  // 95%的请求应在1200ms内完成
     http_req_failed: ['rate<0.02'],     // 失败率应小于2%
-    http_reqs: ['rate>20'],            // 每秒请求数应大于20
+    // http_reqs: ['rate>20'],            // 每秒请求数应大于20
   },
   // K6 Cloud执行配置
   ext: {

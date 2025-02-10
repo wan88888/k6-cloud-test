@@ -51,15 +51,15 @@ jobs:
         STATUS="${{ job.status }}"
         
         if [ "$STATUS" = "success" ]; then
-          STATUS_TEXT="✅ 性能测试通过"
+          STATUS_EMOJI="✅"
+          STATUS_TEXT="通过"
           COLOR="green"
-          DETAIL="所有性能指标均达到预期要求"
         else
-          STATUS_TEXT="❌ 性能测试未通过"
+          STATUS_EMOJI="❌"
+          STATUS_TEXT="未通过"
           COLOR="red"
-          DETAIL="部分性能指标未达到阈值要求，请查看详细报告进行分析"
         fi
         
         curl -X POST -H "Content-Type: application/json" \
-          -d "{\"msg_type\":\"post\",\"content\":{\"post\":{\"zh_cn\":{\"title\":\"K6性能测试报告\",\"content\":[[{\"tag\":\"text\",\"text\":\"${STATUS_TEXT}\n\n${DETAIL}\n\n测试ID: ${TEST_ID}\n\n查看详细报告: ${TEST_URL}\n\n注意：即使测试未通过阈值要求，您仍可以通过报告链接查看具体的性能指标数据。\"}]]}}}" \
+          -d "{\"msg_type\":\"interactive\",\"card\":{\"header\":{\"title\":{\"tag\":\"plain_text\",\"content\":\"K6性能测试报告\"},\"template\":\"${COLOR}\"},\"elements\":[{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试状态：** ${STATUS_EMOJI} ${STATUS_TEXT}\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试ID：** ${TEST_ID}\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**详细报告：** [点击查看](${TEST_URL})\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"---\"}}]}}" \
           "${FEISHU_WEBHOOK}"
