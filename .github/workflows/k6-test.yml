@@ -35,12 +35,23 @@ jobs:
     - name: Run k6 cloud tests
       id: k6-test
       run: |
-        OUTPUT=$(k6 cloud tests/test.js)
-        TEST_ID=$(echo "$OUTPUT" | grep -oP 'Run \K[0-9]+' || true)
+        # 运行k6测试并保存输出
+        OUTPUT=$(k6 cloud tests/test.js 2>&1)
+        echo "K6 Output: $OUTPUT"
+        
+        # 尝试多种模式匹配测试ID
+        TEST_ID=$(echo "$OUTPUT" | grep -oP '(?:Run|Test run) \K[0-9]+' || \
+                 echo "$OUTPUT" | grep -oP 'test run ID: \K[0-9]+' || \
+                 echo "$OUTPUT" | grep -oP 'run/\K[0-9]+' || true)
+        
         if [ -z "$TEST_ID" ]; then
-          echo "Failed to extract test ID from output"
+          echo "错误：无法从K6输出中提取测试ID"
+          echo "完整输出："
+          echo "$OUTPUT"
           exit 1
         fi
+        
+        echo "成功提取测试ID: ${TEST_ID}"
         echo "test_id=${TEST_ID}" >> $GITHUB_OUTPUT
 
     - name: Send test report to Feishu
@@ -61,5 +72,5 @@ jobs:
         fi
         
         curl -X POST -H "Content-Type: application/json" \
-          -d "{\"msg_type\":\"interactive\",\"card\":{\"header\":{\"title\":{\"tag\":\"plain_text\",\"content\":\"K6性能测试报告\"},\"template\":\"${COLOR}\"},\"elements\":[{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试状态：** ${STATUS_EMOJI} ${STATUS_TEXT}\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试ID：** ${TEST_ID}\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**详细报告：** [点击查看](${TEST_URL})\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"---\"}}]}}" \
+          -d "{\"msg_type\":\"interactive\",\"card\":{\"header\":{\"title\":{\"tag\":\"plain_text\",\"content\":\"K6性能测试报告\"},\"template\":\"${COLOR}\"},\"elements\":[{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试状态：** ${STATUS_EMOJI} ${STATUS_TEXT}\"}},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试ID：** ${TEST_ID}\"}},{\"tag\":\"action\",\"actions\":[{\"tag\":\"button\",\"text\":{\"tag\":\"plain_text\",\"content\":\"查看详细报告\"},\"url\":\"${TEST_URL}\",\"type\":\"default\"}]},{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"---\"}}]}}}" \
           "${FEISHU_WEBHOOK}"
